@@ -1,0 +1,1 @@
+export default function Page() { return <div className="py-32 text-center text-2xl font-bold">Contacto</div>; }
