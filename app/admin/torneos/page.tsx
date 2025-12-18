@@ -82,10 +82,13 @@ export default function AdminTorneosPage() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
-    const { name, value, type, checked } = e.target;
+    const target = e.target;
+    const { name, value } = target;
+    const isCheckbox = target instanceof HTMLInputElement && target.type === "checkbox";
+    const checked = isCheckbox ? target.checked : undefined;
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: isCheckbox ? checked : value,
     }));
   };
 

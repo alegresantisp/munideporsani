@@ -9,6 +9,7 @@ import {
   query,
   updateDoc,
   where,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { getFirebaseClient } from "@/lib/firebase/clientApp";
 import type {
@@ -19,7 +20,9 @@ import type {
 
 const COLLECTION = "noticias";
 
-const mapDocToNoticia = (snapshot: firebase.firestore.QueryDocumentSnapshot): Noticia => {
+const mapDocToNoticia = (
+  snapshot: QueryDocumentSnapshot<Omit<Noticia, "id">>,
+): Noticia => {
   const data = snapshot.data() as Omit<Noticia, "id">;
   return {
     id: snapshot.id,
@@ -58,8 +61,8 @@ export const noticiasRepository = {
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const docSnap = snapshot.docs[0]!;
-    return mapDocToNoticia(docSnap as any);
+    const docSnap = snapshot.docs[0]! as QueryDocumentSnapshot<Omit<Noticia, "id">>;
+    return mapDocToNoticia(docSnap);
   },
 
   async obtenerNoticiaPorId(id: string): Promise<Noticia | null> {
@@ -84,13 +87,7 @@ export const noticiasRepository = {
       limit(max),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(
-      (d) =>
-        ({
-          id: d.id,
-          ...(d.data() as Omit<Noticia, "id">),
-        }) satisfies Noticia,
-    );
+    return snapshot.docs.map((d) => mapDocToNoticia(d as QueryDocumentSnapshot<Omit<Noticia, "id">>));
   },
 
   async listarNoticiasRecientes(max = 12): Promise<Noticia[]> {
@@ -101,13 +98,7 @@ export const noticiasRepository = {
       limit(max),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(
-      (d) =>
-        ({
-          id: d.id,
-          ...(d.data() as Omit<Noticia, "id">),
-        }) satisfies Noticia,
-    );
+    return snapshot.docs.map((d) => mapDocToNoticia(d as QueryDocumentSnapshot<Omit<Noticia, "id">>));
   },
 };
 
