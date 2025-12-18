@@ -16,6 +16,9 @@ export default async function NavPage({ params }: { params: Promise<{ navpage: s
   const layout = page.layout ?? "hero-text";
   const hasBlocks = (page.blocks?.length ?? 0) > 0;
   const firstBlockIsHero = hasBlocks && page.blocks?.[0].type === "hero";
+  const wrapperClass = hasBlocks
+    ? "w-full px-4 md:px-6 lg:px-10 py-12 space-y-12"
+    : "max-w-5xl mx-auto px-4 py-16 space-y-8";
 
   const renderBody = () => {
     const body = page.body ?? "";
@@ -34,7 +37,7 @@ export default async function NavPage({ params }: { params: Promise<{ navpage: s
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-16 space-y-8">
+    <div className={wrapperClass}>
       {!hasBlocks && (
         <>
           <div className="space-y-2">
@@ -51,14 +54,16 @@ export default async function NavPage({ params }: { params: Promise<{ navpage: s
       )}
 
       {hasBlocks && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {!firstBlockIsHero && (
-            <div className="space-y-2">
+            <div className="space-y-2 max-w-5xl mx-auto px-0 md:px-0">
               <h1 className="text-3xl md:text-4xl font-bold text-slate-900">{page.title}</h1>
               {page.subtitle && <p className="text-lg text-slate-600">{page.subtitle}</p>}
             </div>
           )}
-          <PageBlocksRenderer blocks={page.blocks} />
+          <div className="w-full">
+            <PageBlocksRenderer blocks={page.blocks} />
+          </div>
         </div>
       )}
     </div>

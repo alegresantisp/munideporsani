@@ -20,6 +20,7 @@ export type NavPageBlock =
   | {
       id: string;
       type: "gallery";
+      title?: string;
       images: Array<{ url: string; caption?: string; size?: "sm" | "md" | "lg" }>;
       columns?: number;
       width?: "full" | "half";
@@ -27,7 +28,10 @@ export type NavPageBlock =
   | {
       id: string;
       type: "carousel";
+      title?: string;
       images: Array<{ url: string; caption?: string; size?: "sm" | "md" | "lg" }>;
+      animation?: "slide" | "fade" | "coverflow";
+      size?: "sm" | "md" | "lg";
       width?: "full" | "half";
     }
   | {

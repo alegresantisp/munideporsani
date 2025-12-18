@@ -124,7 +124,6 @@ export function PageBlocksRenderer({ blocks, editable, onReorder, onUpdateBlock,
               </div>
             )}
             <div className="relative p-10 md:p-14 space-y-4 max-w-4xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/80">Destacado</p>
               <input
                 value={block.title}
                 onChange={(e) => onUpdateBlock(block.id, { title: e.target.value })}
@@ -168,7 +167,6 @@ export function PageBlocksRenderer({ blocks, editable, onReorder, onUpdateBlock,
             </div>
           )}
           <div className="relative p-10 md:p-14 space-y-4 max-w-4xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/80">Destacado</p>
             <h2 className="text-3xl md:text-4xl font-bold drop-shadow-sm">{block.title}</h2>
             {block.subtitle && <p className="text-lg text-white/85 max-w-3xl">{block.subtitle}</p>}
             {block.ctaLabel && block.ctaHref && (
@@ -212,15 +210,20 @@ export function PageBlocksRenderer({ blocks, editable, onReorder, onUpdateBlock,
       );
     }
 
-    if (block.type === "gallery") {
+     if (block.type === "gallery") {
       const cols = Math.min(Math.max(block.columns ?? 3, 2), 4);
       const colClass = cols === 4 ? "md:grid-cols-4" : cols === 2 ? "md:grid-cols-2" : "md:grid-cols-3";
       
       if (editable && onUpdateBlock) {
          return (
             <section key={block.id} className={`space-y-3 ${spanClass} group/gallery relative rounded-xl border border-dashed border-slate-200 p-4 hover:border-sky-300 transition-colors`}>
-               <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-slate-900">Galería</h3>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <input
+                value={block.title ?? ""}
+                onChange={(e) => onUpdateBlock(block.id, { title: e.target.value })}
+                placeholder="Título opcional (deja vacío para ocultar)"
+                className="w-full md:w-1/2 rounded border border-slate-200 px-3 py-2 text-sm text-slate-900"
+              />
                   <select 
                      value={block.columns ?? 3}
                      onChange={(e) => onUpdateBlock(block.id, { columns: Number(e.target.value) })}
@@ -313,7 +316,7 @@ export function PageBlocksRenderer({ blocks, editable, onReorder, onUpdateBlock,
       const images = block.images.filter((img) => isAllowedImage(img.url));
       return (
         <section key={block.id} className={`space-y-3 ${spanClass}`}>
-          <h3 className="text-xl font-semibold text-slate-900">Galería</h3>
+          {block.title ? <h3 className="text-xl font-semibold text-slate-900">{block.title}</h3> : null}
           <div className={`grid gap-3 grid-cols-1 sm:grid-cols-2 ${colClass} auto-rows-[minmax(140px,auto)] grid-flow-dense`}>
             {images.map((img, idx) => (
               <div
@@ -333,84 +336,124 @@ export function PageBlocksRenderer({ blocks, editable, onReorder, onUpdateBlock,
     }
 
     if (block.type === "carousel") {
-      if (editable && onUpdateBlock) {
-         return (
-            <section key={block.id} className={`space-y-3 ${spanClass || ""} group/carousel relative rounded-xl border border-dashed border-slate-200 p-4 hover:border-sky-300 transition-colors`}>
-               <h3 className="text-xl font-semibold text-slate-900">Carrusel</h3>
-               <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
-                  {block.images.map((img, idx) => (
-                     <div key={idx} className="relative h-44 w-72 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 snap-center group/img">
-                        {img.url ? (
-                           <Image src={img.url} alt={img.caption || ""} fill className="object-cover" />
-                        ) : (
-                           <div className="flex items-center justify-center h-full text-xs text-slate-400">Sin imagen</div>
-                        )}
-                        
-                        <div className="absolute top-1 right-1 opacity-0 group-hover/img:opacity-100 transition-opacity z-10">
-                           <button 
-                              type="button"
-                              onClick={() => {
-                                 const newImages = [...block.images];
-                                 newImages.splice(idx, 1);
-                                 onUpdateBlock(block.id, { images: newImages });
-                              }}
-                              className="bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs shadow hover:bg-red-600"
-                           >
-                              ×
-                           </button>
-                        </div>
+      const sizeClass = block.size === "lg" ? "h-64 w-96" : block.size === "sm" ? "h-40 w-64" : "h-48 w-80";
+      const animation = block.animation ?? "slide";
+      const animationItemClass =
+        animation === "fade"
+          ? "opacity-80 hover:opacity-100 transition-opacity duration-300"
+          : animation === "coverflow"
+            ? "transition-transform duration-300 ease-out hover:scale-105 hover:-rotate-1"
+            : "transition-transform duration-200 ease-out hover:translate-y-[1px]";
 
-                        <div className="absolute inset-x-0 bottom-0 bg-black/60 p-2 opacity-0 group-hover/img:opacity-100 transition-opacity">
-                           <input 
-                              value={img.caption ?? ""}
-                              onChange={(e) => {
-                                 const newImages = [...block.images];
-                                 newImages[idx] = { ...newImages[idx], caption: e.target.value };
-                                 onUpdateBlock(block.id, { images: newImages });
-                              }}
-                              className="w-full bg-transparent text-white text-xs border-none focus:ring-0 placeholder-white/50 p-0"
-                              placeholder="Leyenda..."
-                           />
-                        </div>
-                     </div>
-                  ))}
-                  
-                  {onUpload && (
-                     <label className="flex flex-col items-center justify-center h-44 w-32 flex-shrink-0 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
-                        <span className="text-2xl text-slate-400">+</span>
-                        <span className="text-xs text-slate-500 font-medium">Agregar</span>
-                        <input 
-                           type="file" 
-                           className="hidden" 
-                           accept="image/*" 
-                           onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                 const url = await onUpload(file);
-                                 if (url) {
-                                    onUpdateBlock(block.id, { 
-                                       images: [...block.images, { url }] 
-                                    });
-                                 }
-                              }
-                           }} 
-                        />
-                     </label>
+      if (editable && onUpdateBlock) {
+        return (
+          <section key={block.id} className={`space-y-3 ${spanClass || ""} group/carousel relative rounded-xl border border-dashed border-slate-200 p-4 hover:border-sky-300 transition-colors`}>
+            <div className="grid gap-2 md:grid-cols-3">
+              <input
+                value={block.title ?? ""}
+                onChange={(e) => onUpdateBlock(block.id, { title: e.target.value })}
+                placeholder="Título opcional (deja vacío para ocultar)"
+                className="rounded border border-slate-200 px-3 py-2 text-sm text-slate-900 md:col-span-2"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={animation}
+                  onChange={(e) => onUpdateBlock(block.id, { animation: e.target.value as any })}
+                  className="flex-1 rounded border border-slate-200 px-2 py-2 text-sm text-slate-900"
+                >
+                  <option value="slide">Slide</option>
+                  <option value="fade">Fade</option>
+                  <option value="coverflow">Coverflow</option>
+                </select>
+                <select
+                  value={block.size ?? "md"}
+                  onChange={(e) => onUpdateBlock(block.id, { size: e.target.value as any })}
+                  className="w-28 rounded border border-slate-200 px-2 py-2 text-sm text-slate-900"
+                >
+                  <option value="sm">Chico</option>
+                  <option value="md">Medio</option>
+                  <option value="lg">Grande</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+              {block.images.map((img, idx) => (
+                <div
+                  key={idx}
+                  className={`relative flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 snap-center ${sizeClass} group/img ${animationItemClass}`}
+                >
+                  {img.url ? (
+                    <Image src={img.url} alt={img.caption || ""} fill className="object-cover" />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-xs text-slate-400">Sin imagen</div>
                   )}
-               </div>
-            </section>
-         );
+
+                  <div className="absolute top-1 right-1 opacity-0 group-hover/img:opacity-100 transition-opacity z-10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newImages = [...block.images];
+                        newImages.splice(idx, 1);
+                        onUpdateBlock(block.id, { images: newImages });
+                      }}
+                      className="bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center text-xs shadow hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="absolute inset-x-0 bottom-0 bg-black/60 p-2 opacity-0 group-hover/img:opacity-100 transition-opacity">
+                    <input
+                      value={img.caption ?? ""}
+                      onChange={(e) => {
+                        const newImages = [...block.images];
+                        newImages[idx] = { ...newImages[idx], caption: e.target.value };
+                        onUpdateBlock(block.id, { images: newImages });
+                      }}
+                      className="w-full bg-transparent text-white text-xs border-none focus:ring-0 placeholder-white/50 p-0"
+                      placeholder="Leyenda..."
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {onUpload && (
+                <label className={`flex flex-col items-center justify-center flex-shrink-0 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors ${sizeClass.replace("h-", "min-h-")}`}>
+                  <span className="text-2xl text-slate-400">+</span>
+                  <span className="text-xs text-slate-500 font-medium">Agregar</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const url = await onUpload(file);
+                        if (url) {
+                          onUpdateBlock(block.id, {
+                            images: [...block.images, { url }],
+                          });
+                        }
+                      }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          </section>
+        );
       }
 
       const images = block.images.filter((img) => isAllowedImage(img.url));
       return (
         <section key={block.id} className={`space-y-3 ${spanClass || ""}`}>
-          <h3 className="text-xl font-semibold text-slate-900">Carrusel</h3>
+          {block.title ? <h3 className="text-xl font-semibold text-slate-900">{block.title}</h3> : null}
           <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
             {images.map((img, idx) => (
               <div
                 key={img.url + idx}
-                className="relative h-44 w-72 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 snap-center"
+                className={`relative flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 snap-center ${sizeClass} ${animationItemClass}`}
               >
                 <Image src={img.url} alt={img.caption || "Imagen de carrusel"} fill className="object-cover" />
               </div>

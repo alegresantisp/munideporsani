@@ -278,9 +278,9 @@ export default function NavAdminClient({ initialItems, initialSections }: Props)
         case "richText":
           return { id: makeId(), type: "richText", html: "<p>Contenido de texto.</p>", width: "half" };
         case "gallery":
-          return { id: makeId(), type: "gallery", images: [], columns: 3, width: "half" };
+          return { id: makeId(), type: "gallery", title: "", images: [], columns: 3, width: "half" };
         case "carousel":
-          return { id: makeId(), type: "carousel", images: [], width: "full" };
+          return { id: makeId(), type: "carousel", title: "", images: [], animation: "slide", size: "md", width: "full" };
         case "spacer":
           return { id: makeId(), type: "spacer", width: "half" };
         case "cta":
