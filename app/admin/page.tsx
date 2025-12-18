@@ -38,10 +38,12 @@ export default function AdminDashboardPage() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
-    const { name, value, type, checked } = e.target;
+    const target = e.target;
+    const { name, value, type } = target;
+    const isCheckbox = target instanceof HTMLInputElement && target.type === "checkbox";
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: isCheckbox ? target.checked : value,
     }));
   };
 
@@ -291,40 +293,4 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-sky-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-sky-500"
-            />
-          </div>
-          <div className="flex items-center gap-2 pt-6">
-            <input
-              id="destacado"
-              name="destacado"
-              type="checkbox"
-              checked={form.destacado}
-              onChange={handleChange}
-              className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-sky-500"
-            />
-            <label
-              htmlFor="destacado"
-              className="text-xs text-slate-300"
-            >
-              Mostrar como noticia destacada en la portada
-            </label>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex items-center rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-slate-950 shadow-sm transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-600"
-        >
-          {isSubmitting ? "Guardando..." : "Publicar noticia"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-
+             

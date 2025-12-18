@@ -1,14 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import type { HeroSlide } from "@/services/hero/hero.types";
+import type { HeroSlide, HeroConfig } from "@/services/hero/hero.types";
 import Image from "next/image";
+import { toast } from "sonner";
 
-export default function HeroAdminClient({ initialSlides }: { initialSlides: HeroSlide[] }) {
+type Props = {
+  initialSlides: HeroSlide[];
+  initialConfig: HeroConfig;
+};
+
+export default function HeroAdminClient({ initialSlides, initialConfig }: Props) {
   const [slides, setSlides] = useState<HeroSlide[]>(initialSlides);
   const [editingSlide, setEditingSlide] = useState<Partial<HeroSlide> | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [config, setConfig] = useState<HeroConfig>(initialConfig);
+  const maxSlides = 3;
 
   const handleEdit = (slide: HeroSlide) => {
     setEditingSlide(slide);
@@ -16,7 +24,11 @@ export default function HeroAdminClient({ initialSlides }: { initialSlides: Hero
   };
 
   const handleCreate = () => {
-    setEditingSlide({ active: true, order: slides.length });
+    if (slides.length >= maxSlides) {
+      toast.error("Solo puedes tener hasta 3 slides en el hero.");
+      return;
+    }
+    setEditingSlide({ active: true, order: slides.length + 1 });
     setIsModalOpen(true);
   };
 
@@ -30,24 +42,56 @@ export default function HeroAdminClient({ initialSlides }: { initialSlides: Hero
     e.preventDefault();
     if (!editingSlide) return;
 
+    if (!editingSlide.title || !editingSlide.imageUrl) {
+      toast.error("La imagen y el título son obligatorios");
+      return;
+    }
+
+    const order = Number(editingSlide.order ?? 0);
+    const payload = { ...editingSlide, order };
+
     const isNew = !editingSlide.id;
     const url = isNew ? "/api/hero" : `/api/hero/${editingSlide.id}`;
     const method = isNew ? "POST" : "PUT";
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editingSlide),
-    });
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    if (res.ok) {
-      const saved = await res.json(); // If POST returns {id}
-      // Refresh list (simple way)
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "No se pudo guardar el slide");
+      }
+
       const listRes = await fetch("/api/hero");
       const newSlides = await listRes.json();
       setSlides(newSlides);
       setIsModalOpen(false);
       setEditingSlide(null);
+      toast.success("Slide guardado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al guardar");
+    }
+  };
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/hero/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "No se pudo guardar la frase");
+      }
+      toast.success("Frase actualizada");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al guardar la frase");
     }
   };
 
@@ -76,16 +120,20 @@ export default function HeroAdminClient({ initialSlides }: { initialSlides: Hero
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Gestión del Hero (Carrusel)</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Gestión del Hero (Carrusel)</h1>
+          <p className="text-sm text-slate-500">Máximo {maxSlides} imágenes activas con su texto.</p>
+        </div>
         <button
           onClick={handleCreate}
-          className="bg-sky-600 text-white px-4 py-2 rounded hover:bg-sky-700"
+          disabled={slides.length >= maxSlides}
+          className="bg-sky-600 text-white px-4 py-2 rounded hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Nuevo Slide
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
         {slides.map((slide) => (
           <div key={slide.id} className="border rounded-lg overflow-hidden shadow-sm bg-white">
             <div className="relative h-48 w-full bg-gray-200">
@@ -120,15 +168,43 @@ export default function HeroAdminClient({ initialSlides }: { initialSlides: Hero
         ))}
       </div>
 
+      <form onSubmit={handleSaveConfig} className="space-y-3 bg-white text-slate-900 rounded-xl p-4 shadow-sm">
+        <h2 className="text-lg font-semibold">Frase destacada</h2>
+        <p className="text-sm text-slate-600">Texto que se muestra debajo del hero principal en la portada.</p>
+        <label className="block text-sm font-medium text-slate-900">Frase</label>
+        <textarea
+          value={config.tagline}
+          onChange={(e) => setConfig((prev) => ({ ...prev, tagline: e.target.value }))}
+          rows={2}
+          className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900"
+          required
+        />
+        <label className="block text-sm font-medium text-slate-900">Subtítulo (opcional)</label>
+        <input
+          value={config.subline ?? ""}
+          onChange={(e) => setConfig((prev) => ({ ...prev, subline: e.target.value }))}
+          className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900"
+          placeholder="Energía, pasión y oportunidades para todos."
+        />
+        <div className="flex justify-end pt-2">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
+          >
+            Guardar frase
+          </button>
+        </div>
+      </form>
+
       {isModalOpen && editingSlide && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white text-slate-900 rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-4">
               {editingSlide.id ? "Editar Slide" : "Nuevo Slide"}
             </h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Imagen</label>
+                <label className="block text-sm font-medium mb-1 text-slate-900">Imagen</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -144,55 +220,55 @@ export default function HeroAdminClient({ initialSlides }: { initialSlides: Hero
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Título</label>
+                <label className="block text-sm font-medium mb-1 text-slate-900">Título</label>
                 <input
                   type="text"
                   value={editingSlide.title || ""}
                   onChange={(e) => setEditingSlide({ ...editingSlide, title: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 placeholder-slate-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Subtítulo</label>
+                <label className="block text-sm font-medium mb-1 text-slate-900">Subtítulo</label>
                 <textarea
                   value={editingSlide.subtitle || ""}
                   onChange={(e) => setEditingSlide({ ...editingSlide, subtitle: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 placeholder-slate-500"
                   rows={3}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Texto Botón</label>
+                  <label className="block text-sm font-medium mb-1 text-slate-900">Texto Botón</label>
                   <input
                     type="text"
                     value={editingSlide.buttonText || ""}
                     onChange={(e) => setEditingSlide({ ...editingSlide, buttonText: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 placeholder-slate-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Link Botón</label>
+                  <label className="block text-sm font-medium mb-1 text-slate-900">Link Botón</label>
                   <input
                     type="text"
                     value={editingSlide.buttonLink || ""}
                     onChange={(e) => setEditingSlide({ ...editingSlide, buttonLink: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900 placeholder-slate-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Orden</label>
+                  <label className="block text-sm font-medium mb-1 text-slate-900">Orden</label>
                   <input
                     type="number"
                     value={editingSlide.order || 0}
                     onChange={(e) => setEditingSlide({ ...editingSlide, order: Number(e.target.value) })}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-slate-900"
                   />
                 </div>
                 <div className="flex items-center pt-6">
@@ -203,7 +279,7 @@ export default function HeroAdminClient({ initialSlides }: { initialSlides: Hero
                       onChange={(e) => setEditingSlide({ ...editingSlide, active: e.target.checked })}
                       className="rounded text-sky-600 focus:ring-sky-500"
                     />
-                    <span className="text-sm font-medium">Activo</span>
+                    <span className="text-sm font-medium text-slate-900">Activo</span>
                   </label>
                 </div>
               </div>

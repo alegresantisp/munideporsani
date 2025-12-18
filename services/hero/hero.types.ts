@@ -11,3 +11,10 @@ export interface HeroSlide {
 
 export type HeroSlideCreateInput = Omit<HeroSlide, "id">;
 export type HeroSlideUpdateInput = Partial<HeroSlideCreateInput>;
+
+export interface HeroConfig {
+  tagline: string;
+  subline?: string;
+}
+
+export type HeroConfigUpdateInput = Partial<HeroConfig>;

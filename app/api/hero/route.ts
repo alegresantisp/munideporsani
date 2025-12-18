@@ -17,6 +17,11 @@ export async function POST(request: Request) {
   const decoded = await firebaseAdminAuth.verifySessionCookie(sessionCookie, true).catch(() => null);
   if (!isAdminDeportes(decoded)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const totalSlides = await heroServerRepository.contarSlides();
+  if (totalSlides >= 3) {
+    return NextResponse.json({ error: "Máximo de 3 slides alcanzado" }, { status: 400 });
+  }
+
   const body = await request.json();
   const id = await heroServerRepository.crearSlide(body);
   return NextResponse.json({ id });

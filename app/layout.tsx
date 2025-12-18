@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { SiteShell } from "@/components/layout/SiteShell";
 import { AppToaster } from "@/components/ui/AppToaster";
+import { navigationServerRepository } from "@/services/navigation/navigation.server.repository";
+import { navSectionServerRepository } from "@/services/navigation/navSection.server.repository";
+import type { NavSectionConfig, NavSection, NavItem } from "@/services/navigation/navigation.types";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,21 +23,32 @@ export const metadata: Metadata = {
     "Portal institucional y de servicios deportivos de la Secretaría de Deportes del Municipio de San Isidro.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const sections = await navSectionServerRepository.listActive();
+  const itemsEntries = await Promise.all(
+    sections.map(async (section) => [section.section, await navigationServerRepository.listActiveBySection(section.section)] as const),
+  );
+
+  const itemsBySection = itemsEntries.reduce((acc, [section, list]) => {
+    acc[section] = list;
+    return acc;
+  }, {} as Record<NavSection, NavItem[]>);
+
   return (
     <html lang="es">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900`}
       >
-        <div className="flex min-h-screen flex-col">
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </div>
+        <SiteShell
+          navSections={sections as NavSectionConfig[]}
+          navItems={itemsBySection}
+        >
+          {children}
+        </SiteShell>
         <AppToaster />
       </body>
     </html>
