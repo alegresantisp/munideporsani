@@ -14,6 +14,7 @@ interface SiteShellProps {
 export function SiteShell({ children, navSections, navItems }: SiteShellProps) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
+  const hideNavbar = pathname === "/login";
 
   if (isAdmin) {
     return <>{children}</>;
@@ -21,12 +22,14 @@ export function SiteShell({ children, navSections, navItems }: SiteShellProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Navbar
-        sections={navSections.map((section) => ({
-          ...section,
-          items: navItems[section.section] ?? [],
-        }))}
-      />
+      {!hideNavbar && (
+        <Navbar
+          sections={navSections.map((section) => ({
+            ...section,
+            items: navItems[section.section] ?? [],
+          }))}
+        />
+      )}
       <main className="flex-1">{children}</main>
       <Footer />
     </div>

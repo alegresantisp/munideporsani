@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { toast } from "sonner";
 import type { NavItem, NavSection, NavSectionConfig } from "@/services/navigation/navigation.types";
@@ -209,14 +209,22 @@ export default function NavAdminClient({ initialItems, initialSections }: Props)
 
   const ensurePath = (path: string) => (path.startsWith("/") ? path : `/${path}`);
 
-  const uploadAsset = async (file?: File): Promise<string | null> => {
-    if (!file) return null;
+  const pendingUploads = useRef<Map<string, File>>(new Map());
+
+  const uploadFileToCloudinary = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
     if (!res.ok || !data.url) throw new Error(data?.error ?? "No se pudo subir la imagen");
     return data.url as string;
+  };
+
+  const handleFileSelect = async (file?: File): Promise<string | null> => {
+    if (!file) return null;
+    const blobUrl = URL.createObjectURL(file);
+    pendingUploads.current.set(blobUrl, file);
+    return blobUrl;
   };
 
   const openPageConfig = async (item?: NavItem) => {
@@ -281,6 +289,17 @@ export default function NavAdminClient({ initialItems, initialSections }: Props)
           return { id: makeId(), type: "gallery", title: "", images: [], columns: 3, width: "half" };
         case "carousel":
           return { id: makeId(), type: "carousel", title: "", images: [], animation: "slide", size: "md", width: "full" };
+        case "cards_grid":
+          return { 
+            id: makeId(), 
+            type: "cards_grid", 
+            title: "", 
+            columns: 3, 
+            cards: [
+              { id: makeId(), title: "Nueva Tarjeta", description: "Descripción breve", buttonText: "Leer más", modalTitle: "Detalle", modalContent: "<p>Contenido del modal...</p>" }
+            ], 
+            width: "full" 
+          };
         case "spacer":
           return { id: makeId(), type: "spacer", width: "half" };
         case "cta":
@@ -337,6 +356,61 @@ export default function NavAdminClient({ initialItems, initialSections }: Props)
     if (!path) return;
     setPageSaving(true);
     try {
+      // Process uploads
+      const processBlocks = async (blocks: NavPageBlock[]): Promise<NavPageBlock[]> => {
+        const newBlocks = [...blocks];
+        for (let i = 0; i < newBlocks.length; i++) {
+          const block = { ...newBlocks[i] };
+          
+          // Helper to check and upload
+          const checkAndUpload = async (url?: string) => {
+            if (url && url.startsWith("blob:") && pendingUploads.current.has(url)) {
+              const file = pendingUploads.current.get(url)!;
+              const newUrl = await uploadFileToCloudinary(file);
+              pendingUploads.current.delete(url);
+              URL.revokeObjectURL(url);
+              return newUrl;
+            }
+            return url;
+          };
+
+          if (block.type === "hero" || block.type === "cta") {
+            block.imageUrl = await checkAndUpload(block.imageUrl);
+          } else if (block.type === "gallery" || block.type === "carousel") {
+            if (block.images) {
+              block.images = await Promise.all(block.images.map(async (img) => ({
+                ...img,
+                url: (await checkAndUpload(img.url)) || img.url
+              })));
+            }
+          } else if (block.type === "cards_grid") {
+             if (block.cards) {
+                block.cards = await Promise.all(block.cards.map(async (card) => {
+                   const newCard = { ...card };
+                   newCard.imageUrl = await checkAndUpload(newCard.imageUrl);
+                   if (newCard.modalImages) {
+                      newCard.modalImages = await Promise.all(newCard.modalImages.map(async (url) => (await checkAndUpload(url)) || url));
+                   }
+                   return newCard;
+                }));
+             }
+          }
+          newBlocks[i] = block;
+        }
+        return newBlocks;
+      };
+
+      const updatedBlocks = await processBlocks(pageConfig.blocks);
+      
+      // Also check pageConfig.imageUrl (if used outside blocks)
+      let pageImageUrl = pageConfig.imageUrl;
+      if (pageImageUrl && pageImageUrl.startsWith("blob:") && pendingUploads.current.has(pageImageUrl)) {
+         const file = pendingUploads.current.get(pageImageUrl)!;
+         pageImageUrl = await uploadFileToCloudinary(file);
+         pendingUploads.current.delete(pageConfig.imageUrl);
+         URL.revokeObjectURL(pageConfig.imageUrl);
+      }
+
       const res = await fetch("/api/nav/page", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -345,9 +419,9 @@ export default function NavAdminClient({ initialItems, initialSections }: Props)
           title: pageConfig.title || form.label,
           subtitle: pageConfig.subtitle,
           body: pageConfig.body,
-          imageUrl: pageConfig.imageUrl,
+          imageUrl: pageImageUrl,
           layout: pageConfig.layout,
-          blocks: pageConfig.blocks,
+          blocks: updatedBlocks,
         }),
       });
       const payload = await res.json().catch(() => null);
@@ -751,6 +825,13 @@ export default function NavAdminClient({ initialItems, initialSections }: Props)
                 </button>
                 <button
                   type="button"
+                  className="rounded-full bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-orange-700 transition whitespace-nowrap"
+                  onClick={() => addBlock("cards_grid")}
+                >
+                  + Cards
+                </button>
+                <button
+                  type="button"
                   className="rounded-full bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow hover:bg-slate-300 transition whitespace-nowrap border border-dashed border-slate-400"
                   onClick={() => addBlock("spacer")}
                 >
@@ -770,19 +851,10 @@ export default function NavAdminClient({ initialItems, initialSections }: Props)
                     editable
                     onReorder={handlePreviewReorder}
                     onUpdateBlock={(id, updates) => updateBlock(id, updates as NavPageBlock)}
-                    onUpload={async (file) => {
-                      setPageSaving(true);
-                      try {
-                        return await uploadAsset(file);
-                      } catch (error) {
-                        toast.error("Error al subir imagen");
-                        return null;
-                      } finally {
-                        setPageSaving(false);
-                      }
-                    }}
+                    onUpload={handleFileSelect}
                     renderBlockControls={(block) => (
                       <div className="flex items-center justify-between gap-2">
+                        {/* Controls for width */}
                         {block.type !== "hero" && (
                           <div className="flex items-center gap-1 bg-slate-100 rounded p-1">
                             <button

@@ -127,6 +127,48 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         >
           • Viñetas
         </button>
+
+        <div className="h-4 w-px bg-slate-300 mx-1" />
+
+        <select
+          className="max-w-[100px] rounded border border-slate-200 bg-white px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+          onChange={(e) => {
+            exec("fontName", e.target.value);
+            e.target.value = ""; // Reset
+          }}
+          title="Fuente"
+          defaultValue=""
+        >
+          <option value="" disabled>Fuente</option>
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Verdana, sans-serif">Verdana</option>
+          <option value="'Times New Roman', serif">Times New Roman</option>
+          <option value="'Courier New', monospace">Courier New</option>
+          <option value="Impact, sans-serif">Impact</option>
+          <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+        </select>
+
+        <select
+          className="max-w-[80px] rounded border border-slate-200 bg-white px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+          onChange={(e) => {
+            exec("fontSize", e.target.value);
+            e.target.value = ""; // Reset
+          }}
+          title="Tamaño"
+        >
+          <option value="" disabled selected>Tamaño</option>
+          <option value="1">Muy Pequeño</option>
+          <option value="2">Pequeño</option>
+          <option value="3">Normal</option>
+          <option value="4">Mediano</option>
+          <option value="5">Grande</option>
+          <option value="6">Muy Grande</option>
+          <option value="7">Enorme</option>
+        </select>
+
+        <div className="h-4 w-px bg-slate-300 mx-1" />
+
         <button
           type="button"
           className={`rounded px-2 py-1 hover:bg-slate-200 ${showLinkInput ? "bg-slate-200 text-sky-600" : ""}`}
